@@ -2,7 +2,6 @@ package arcgis2geojson
 
 import (
 	"errors"
-	"fmt"
 )
 
 type Ring [][]float64
@@ -135,8 +134,6 @@ func convertRingsToGeoJSON(rings []Ring) []Polygon {
 			holes = append(holes, reverse(ring)) // wind inner rings clockwise for RFC 7946 compliance
 		}
 	}
-	fmt.Printf("polygons: %v\n", polygons)
-	fmt.Printf("holes: %v\n", holes)
 
 	uncontainedHoles := []Ring{}
 
