@@ -9,20 +9,15 @@ import (
 )
 
 func Convert(data []byte, idAttribute string) ([]byte, error) {
-
 	arcgisJSON := ArcGISJSON{}
-
 	err := json.Unmarshal(data, &arcgisJSON)
 	if err != nil {
 		return nil, err
 	}
-
 	if arcgisJSON.SpatialReference.WKID != 4326 {
 		return nil, errors.New("error: arc gis features must be in wkid 4326 for valid conversion to geojson")
 	}
-
 	fc := geojson.NewFeatureCollection()
-
 	if len(arcgisJSON.Features) != 0 {
 		for i := 0; i < len(arcgisJSON.Features); i++ {
 			f := arcgisJSON.Features[i]
@@ -97,7 +92,7 @@ type ArcGISFeature struct {
 	Geometry   struct {
 		Points [][]float64   `json:"points"`
 		Paths  [][][]float64 `json:"paths"`
-		Rings  [][][]float64 `json:"rings"`
+		Rings  []Ring        `json:"rings"`
 	} `json:"geometry"`
 	X      float64       `json:"x"`
 	Y      float64       `json:"y"`
@@ -108,7 +103,7 @@ type ArcGISFeature struct {
 	Ymax   float64       `json:"ymax"`
 	Paths  [][][]float64 `json:"paths"`
 	Points [][]float64   `json:"points"`
-	Rings  [][][]float64 `json:"rings"`
+	Rings  []Ring        `json:"rings"`
 }
 
 type ArcGISJSON struct {
@@ -173,26 +168,30 @@ func pathsToFeature(paths [][][]float64) *geojson.Feature {
 	return feature
 }
 
-func ringsToFeature(rings [][][]float64) *geojson.Feature {
+func ringsToFeature(rings []Ring) *geojson.Feature {
 	var feature = new(geojson.Feature)
 	if len(rings) == 0 {
 		return feature
 	}
-	outerRings := convertRingsToGeoJSON(rings)
-	newRings := []orb.Ring{}
-	for _, r := range outerRings {
-		ring := orb.Ring{}
-		for _, pt := range r {
-			ring = append(ring, orb.Point{pt[0], pt[1]})
+	polygons := convertRingsToGeoJSON(rings)
+	newPolygons := []orb.Polygon{}
+	for _, p := range polygons {
+		polygon := orb.Polygon{}
+		for _, r := range p {
+			ring := orb.Ring{}
+			for _, pt := range r {
+				ring = append(ring, orb.Point{pt[0], pt[1]})
+			}
+			polygon = append(polygon, ring)
 		}
-		newRings = append(newRings, ring)
+		newPolygons = append(newPolygons, polygon)
 	}
 	// TODO: if len(outerRings) == 0?
-	if len(outerRings) == 1 {
-		p := orb.Polygon{newRings[0]}
+	if len(newPolygons) == 1 {
+		p := newPolygons[0]
 		feature = geojson.NewFeature(p)
 	} else {
-		mp := orb.MultiPolygon{newRings}
+		mp := orb.MultiPolygon(newPolygons)
 		feature = geojson.NewFeature(mp)
 	}
 	return feature
